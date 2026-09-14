@@ -1,0 +1,22 @@
+▲ Next.js 16.3.4 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://10.239.221.67:3000
+- Environments: .env
+✓ Ready in 1901ms
+✓ Running next.config.ts took 191ms
+
+⚠️  Node.js 20 and below are deprecated and will no longer be supported in future versions of @supabase/supabase-js. Please upgrade to Node.js 22 or later. For more information, visit: https://github.com/orgs/supabase/discussions/45715
+ POST /api/auth/login 200 in 2.6s (next.js: 580ms, application-code: 1978ms)
+ GET /api/dashboard/stats 200 in 3.7s (next.js: 1621ms, application-code: 2.1s)
+ GET /api/dashboard/stats 200 in 5.6s (next.js: 6ms, application-code: 5.6s)
+ GET /api/dashboard/stats 200 in 1845ms (next.js: 25ms, application-code: 1820ms)
+ GET /api/dashboard/stats 200 in 1475ms (next.js: 17ms, application-code: 1458ms)
+ GET /api/products 200 in 3.2s (next.js: 851ms, application-code: 2.3s)
+ GET /api/vendors 500 in 2.6s (next.js: 1596ms, application-code: 1031ms)
+ GET /api/vendors 500 in 548ms (next.js: 58ms, application-code: 491ms)
+ GET /api/notifications?role=admin 200 in 3.4s (next.js: 1999ms, application-code: 1436ms)
+ GET /api/dashboard/stats 200 in 3.0s (next.js: 30ms, application-code: 3.0s)
+ GET /api/dashboard/stats 200 in 1627ms (next.js: 14ms, application-code: 1614ms)
+ GET /api/dashboard/stats 200 in 1671ms (next.js: 14ms, application-code: 1658ms)
+ GET /api/dashboard/stats 200 in 1581ms (next.js: 5ms, application-code: 1576ms)
+ GET /api/dashboard/stats 200 in 1651ms (next.js: 9ms, application-code: 1642ms)
