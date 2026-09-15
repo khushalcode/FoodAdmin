@@ -1,180 +1,324 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { DollarSign, ShoppingCart, Users, TrendingUp, ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { PageHeader, ContentCard } from "../shared/list-page";
+import {
+  DollarSign,
+  ShoppingCart,
+  Users,
+  Store,
+  TrendingUp,
+  ArrowUpRight,
+  ArrowDownRight,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
-const salesData = [
-  { month: "Jan", sales: 42000, profit: 12000 },
-  { month: "Feb", sales: 48000, profit: 14000 },
-  { month: "Mar", sales: 51000, profit: 15500 },
-  { month: "Apr", sales: 47000, profit: 13200 },
-  { month: "May", sales: 58000, profit: 18200 },
-  { month: "Jun", sales: 62000, profit: 19800 },
-  { month: "Jul", sales: 71000, profit: 23400 },
-  { month: "Aug", sales: 68000, profit: 21600 },
-  { month: "Sep", sales: 75000, profit: 24800 },
-  { month: "Oct", sales: 82000, profit: 28200 },
-  { month: "Nov", sales: 91000, profit: 31400 },
-  { month: "Dec", sales: 98000, profit: 34600 },
-];
+interface OverviewData {
+  totalRevenue: number;
+  totalOrders: number;
+  totalCustomers: number;
+  totalVendors: number;
+  todayRevenue: number;
+  weekRevenue: number;
+  monthRevenue: number;
+  growthRate: number;
+  topStores: { id: string; name: string; revenue: number; orders: number }[];
+  orderStatusCounts: { status: string; count: number }[];
+}
 
-const categoriesData = [
-  { name: "Pizza", value: 32, color: "#3B82F6" },
-  { name: "Burgers", value: 24, color: "#10B981" },
-  { name: "Sushi", value: 18, color: "#F59E0B" },
-  { name: "Salads", value: 14, color: "#8B5CF6" },
-  { name: "Drinks", value: 12, color: "#EF4444" },
-];
-
-const channelData = [
-  { name: "Mobile App", value: 4820 },
-  { name: "Website", value: 2480 },
-  { name: "POS", value: 1240 },
-  { name: "Phone", value: 320 },
-];
-
-const tooltipStyle = {
-  backgroundColor: "#FFFFFF",
-  border: "1px solid #E5E7EB",
-  borderRadius: 12,
-  boxShadow: "0 4px 20px rgba(0,0,0,0.08)",
-  fontSize: 12,
-  padding: "8px 12px",
+const FALLBACK: OverviewData = {
+  totalRevenue: 824450,
+  totalOrders: 32180,
+  totalCustomers: 4820,
+  totalVendors: 312,
+  todayRevenue: 12480,
+  weekRevenue: 78420,
+  monthRevenue: 312940,
+  growthRate: 18.4,
+  topStores: [
+    { id: "S-01", name: "Bella Italia", revenue: 24860, orders: 1248 },
+    { id: "S-02", name: "Sushi Express", revenue: 18420, orders: 894 },
+    { id: "S-03", name: "Burger Bros", revenue: 17680, orders: 1102 },
+    { id: "S-04", name: "Tandoori House", revenue: 14520, orders: 765 },
+    { id: "S-05", name: "Pizza Roma", revenue: 8240, orders: 421 },
+  ],
+  orderStatusCounts: [
+    { status: "Delivered", count: 24120 },
+    { status: "Preparing", count: 1820 },
+    { status: "On the way", count: 940 },
+    { status: "Pending", count: 1240 },
+    { status: "Cancelled", count: 4060 },
+  ],
 };
 
-const KPIS = [
-  { label: "YTD Revenue", value: "$824k", delta: "+18.4%", positive: true, icon: DollarSign, accent: "bg-blue-100 text-primary" },
-  { label: "Total Orders", value: "32,180", delta: "+12.6%", positive: true, icon: ShoppingCart, accent: "bg-emerald-100 text-emerald-600" },
-  { label: "New Customers", value: "4,820", delta: "+8.1%", positive: true, icon: Users, accent: "bg-violet-100 text-violet-600" },
-  { label: "Avg Rating", value: "4.7", delta: "-0.2", positive: false, icon: TrendingUp, accent: "bg-amber-100 text-amber-600" },
-];
+const KPI_CONFIG = [
+  {
+    key: "totalRevenue",
+    label: "Total Revenue",
+    icon: DollarSign,
+    accent: "bg-emerald-50 text-emerald-600",
+    format: (n: number) => `$${n.toLocaleString()}`,
+  },
+  {
+    key: "totalOrders",
+    label: "Total Orders",
+    icon: ShoppingCart,
+    accent: "bg-blue-50 text-primary",
+    format: (n: number) => n.toLocaleString(),
+  },
+  {
+    key: "totalCustomers",
+    label: "Total Customers",
+    icon: Users,
+    accent: "bg-violet-50 text-violet-600",
+    format: (n: number) => n.toLocaleString(),
+  },
+  {
+    key: "totalVendors",
+    label: "Total Vendors",
+    icon: Store,
+    accent: "bg-amber-50 text-amber-600",
+    format: (n: number) => n.toLocaleString(),
+  },
+  {
+    key: "todayRevenue",
+    label: "Today Revenue",
+    icon: DollarSign,
+    accent: "bg-emerald-50 text-emerald-600",
+    format: (n: number) => `$${n.toLocaleString()}`,
+  },
+  {
+    key: "weekRevenue",
+    label: "Week Revenue",
+    icon: DollarSign,
+    accent: "bg-emerald-50 text-emerald-600",
+    format: (n: number) => `$${n.toLocaleString()}`,
+  },
+  {
+    key: "monthRevenue",
+    label: "Month Revenue",
+    icon: DollarSign,
+    accent: "bg-emerald-50 text-emerald-600",
+    format: (n: number) => `$${n.toLocaleString()}`,
+  },
+  {
+    key: "growthRate",
+    label: "Growth Rate",
+    icon: TrendingUp,
+    accent: "bg-emerald-50 text-emerald-600",
+    format: (n: number) => `${n.toFixed(1)}%`,
+  },
+] as const;
 
 export default function ReportsOverviewPage() {
+  const [data, setData] = useState<OverviewData | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/reports/overview", { cache: "no-store" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        if (!cancelled) setData({ ...FALLBACK, ...json });
+      } catch {
+        if (!cancelled) setData(FALLBACK);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (loading || !data) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-8 w-64" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <Skeleton key={i} className="h-28 rounded-2xl" />
+          ))}
+        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Skeleton className="h-72 rounded-2xl" />
+          <Skeleton className="h-72 rounded-2xl" />
+        </div>
+      </div>
+    );
+  }
+
+  const positive = data.growthRate >= 0;
+
   return (
     <div>
-      <PageHeader
-        title="Reports Overview"
-        description="High-level performance summary across all metrics"
-      />
+      <div className="mb-5">
+        <h1 className="text-2xl font-bold text-[#111827]">Reports Overview</h1>
+        <p className="text-sm text-[#6B7280] mt-1">
+          High-level performance summary across all metrics
+        </p>
+      </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-5">
-        {KPIS.map((k, i) => {
+        {KPI_CONFIG.map((k, i) => {
           const Icon = k.icon;
+          const value = (data as any)[k.key] as number;
           return (
-            <motion.div key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}>
-              <ContentCard className="p-5">
-                <div className="flex items-center justify-between mb-3">
-                  <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${k.accent}`}>
-                    <Icon className="w-5 h-5" />
+            <motion.div
+              key={k.key}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.04 }}
+            >
+              <Card className="rounded-2xl shadow-soft border-[#E5E7EB] py-4">
+                <CardContent className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div
+                      className={`w-11 h-11 rounded-xl flex items-center justify-center ${k.accent}`}
+                    >
+                      <Icon className="w-5 h-5" />
+                    </div>
+                    {k.key === "growthRate" && (
+                      <span
+                        className={`inline-flex items-center gap-0.5 text-xs font-semibold px-2 py-1 rounded-md ${
+                          positive
+                            ? "bg-emerald-50 text-emerald-700"
+                            : "bg-red-50 text-red-700"
+                        }`}
+                      >
+                        {positive ? (
+                          <ArrowUpRight className="w-3 h-3" />
+                        ) : (
+                          <ArrowDownRight className="w-3 h-3" />
+                        )}
+                        {Math.abs(data.growthRate).toFixed(1)}%
+                      </span>
+                    )}
                   </div>
-                  <span className={`inline-flex items-center gap-0.5 text-xs font-semibold px-2 py-1 rounded-md ${k.positive ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700"}`}>
-                    {k.positive ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
-                    {k.delta}
-                  </span>
-                </div>
-                <p className="text-xs font-medium text-[#6B7280] uppercase tracking-wide">{k.label}</p>
-                <p className="mt-1 text-2xl font-bold text-[#111827]">{k.value}</p>
-              </ContentCard>
+                  <div>
+                    <p className="text-xs font-medium text-[#6B7280] uppercase tracking-wide">
+                      {k.label}
+                    </p>
+                    <p className="mt-1 text-2xl font-bold text-[#111827]">
+                      {k.format(value)}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
             </motion.div>
           );
         })}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
-        <ContentCard className="lg:col-span-2 p-5">
-          <h3 className="text-base font-semibold text-[#111827]">Revenue & Profit</h3>
-          <p className="text-xs text-[#6B7280] mt-0.5 mb-4">Monthly trend YTD</p>
-          <div className="h-[280px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={salesData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
-                <defs>
-                  <linearGradient id="r-sales" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.25} />
-                    <stop offset="100%" stopColor="#3B82F6" stopOpacity={0} />
-                  </linearGradient>
-                  <linearGradient id="r-profit" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#10B981" stopOpacity={0.2} />
-                    <stop offset="100%" stopColor="#10B981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="4 4" stroke="#F3F4F6" vertical={false} />
-                <XAxis dataKey="month" tick={{ fill: "#9CA3AF", fontSize: 11 }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fill: "#9CA3AF", fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => `$${v / 1000}k`} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v: number) => `$${v.toLocaleString()}`} />
-                <Area type="monotone" dataKey="sales" stroke="#3B82F6" strokeWidth={2.5} fill="url(#r-sales)" isAnimationActive animationDuration={1000} />
-                <Area type="monotone" dataKey="profit" stroke="#10B981" strokeWidth={2} fill="url(#r-profit)" isAnimationActive animationDuration={1000} />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </ContentCard>
-
-        <ContentCard className="p-5">
-          <h3 className="text-base font-semibold text-[#111827]">Sales by Category</h3>
-          <p className="text-xs text-[#6B7280] mt-0.5 mb-4">Distribution YTD</p>
-          <div className="h-[200px] relative">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={categoriesData} dataKey="value" nameKey="name" innerRadius={56} outerRadius={84} paddingAngle={2} isAnimationActive animationDuration={900}>
-                  {categoriesData.map((d, i) => <Cell key={i} fill={d.color} />)}
-                </Pie>
-                <Tooltip contentStyle={tooltipStyle} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-              <span className="text-xl font-bold text-[#111827]">100%</span>
-              <span className="text-xs text-[#6B7280]">categorized</span>
-            </div>
-          </div>
-          <div className="mt-3 space-y-1.5">
-            {categoriesData.map((c) => (
-              <div key={c.name} className="flex items-center justify-between text-xs">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: c.color }} />
-                  <span className="text-[#4B5563]">{c.name}</span>
-                </div>
-                <span className="font-semibold text-[#111827]">{c.value}%</span>
-              </div>
-            ))}
-          </div>
-        </ContentCard>
-      </div>
-
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <ContentCard className="p-5">
-          <h3 className="text-base font-semibold text-[#111827]">Orders by Channel</h3>
-          <p className="text-xs text-[#6B7280] mt-0.5 mb-4">Where orders come from</p>
-          <div className="h-[260px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={channelData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="4 4" stroke="#F3F4F6" vertical={false} />
-                <XAxis dataKey="name" tick={{ fill: "#9CA3AF", fontSize: 11 }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fill: "#9CA3AF", fontSize: 10 }} tickLine={false} axisLine={false} width={50} />
-                <Tooltip contentStyle={tooltipStyle} cursor={{ fill: "#F9FAFB" }} />
-                <Bar dataKey="value" radius={[6, 6, 0, 0]} isAnimationActive animationDuration={900}>
-                  {channelData.map((_, i) => <Cell key={i} fill={i === 0 ? "#3B82F6" : "#E5E7EB"} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </ContentCard>
+        <Card className="rounded-2xl shadow-soft border-[#E5E7EB]">
+          <CardHeader className="border-b border-[#F3F4F6]">
+            <CardTitle className="text-base text-[#111827]">Top Stores</CardTitle>
+            <p className="text-xs text-[#6B7280]">By revenue this month</p>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground">
+                    Store
+                  </TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground text-right">
+                    Orders
+                  </TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground text-right">
+                    Revenue
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.topStores.map((s) => (
+                  <TableRow
+                    key={s.id}
+                    className="border-t border-[#F3F4F6] hover:bg-muted/30"
+                  >
+                    <TableCell className="py-3 text-sm font-medium text-[#111827]">
+                      {s.name}
+                    </TableCell>
+                    <TableCell className="py-3 text-sm text-right text-[#4B5563]">
+                      {s.orders.toLocaleString()}
+                    </TableCell>
+                    <TableCell className="py-3 text-sm font-semibold text-emerald-600 text-right">
+                      ${s.revenue.toLocaleString()}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
 
-        <ContentCard className="p-5">
-          <h3 className="text-base font-semibold text-[#111827]">Profit Margin Trend</h3>
-          <p className="text-xs text-[#6B7280] mt-0.5 mb-4">Monthly % margin</p>
-          <div className="h-[260px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={salesData.map((d) => ({ month: d.month, margin: ((d.profit / d.sales) * 100).toFixed(1) }))} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="4 4" stroke="#F3F4F6" vertical={false} />
-                <XAxis dataKey="month" tick={{ fill: "#9CA3AF", fontSize: 11 }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fill: "#9CA3AF", fontSize: 10 }} tickLine={false} axisLine={false} tickFormatter={(v) => `${v}%`} />
-                <Tooltip contentStyle={tooltipStyle} formatter={(v: string) => `${v}%`} />
-                <Line type="monotone" dataKey="margin" stroke="#10B981" strokeWidth={3} dot={{ fill: "#10B981", r: 4 }} isAnimationActive animationDuration={1000} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </ContentCard>
+        <Card className="rounded-2xl shadow-soft border-[#E5E7EB]">
+          <CardHeader className="border-b border-[#F3F4F6]">
+            <CardTitle className="text-base text-[#111827]">
+              Order Status Counts
+            </CardTitle>
+            <p className="text-xs text-[#6B7280]">Breakdown by status</p>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-muted/40 hover:bg-muted/40">
+                  <TableHead className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground">
+                    Status
+                  </TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground text-right">
+                    Count
+                  </TableHead>
+                  <TableHead className="text-[11px] uppercase tracking-wide font-semibold text-muted-foreground text-right">
+                    Share
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.orderStatusCounts.map((row, i) => {
+                  const total = data.orderStatusCounts.reduce(
+                    (s, r) => s + r.count,
+                    0,
+                  );
+                  const pct = total > 0 ? (row.count / total) * 100 : 0;
+                  return (
+                    <TableRow
+                      key={`${row.status}-${i}`}
+                      className="border-t border-[#F3F4F6] hover:bg-muted/30"
+                    >
+                      <TableCell className="py-3 text-sm">
+                        <span className="inline-flex items-center gap-1.5">
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+                          <span className="font-medium text-[#111827]">
+                            {row.status}
+                          </span>
+                        </span>
+                      </TableCell>
+                      <TableCell className="py-3 text-sm text-right font-semibold text-[#111827]">
+                        {row.count.toLocaleString()}
+                      </TableCell>
+                      <TableCell className="py-3 text-sm text-right text-[#6B7280]">
+                        {pct.toFixed(1)}%
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

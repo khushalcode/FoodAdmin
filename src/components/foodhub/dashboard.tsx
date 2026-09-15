@@ -69,6 +69,7 @@ import ExternalConfigPage from "./pages/external-config";
 import MaintenancePage from "./pages/maintenance";
 import AddonsPage from "./pages/addons";
 import AddonActivationPage from "./pages/addon-activation";
+import CreateOrderPage from "./pages/create-order";
 
 interface DashboardProps {
   user: AuthUser;
@@ -103,6 +104,8 @@ export default function Dashboard({ user, activeTab, onTabChange, onLogout }: Da
         return <UnitsPage />;
       case "orders":
         return <OrdersPage />;
+      case "create-order":
+        return <CreateOrderPage />;
       case "pos":
         return <PosPage />;
       case "pos-orders":

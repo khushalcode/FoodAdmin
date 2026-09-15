@@ -80,6 +80,7 @@ export const NAV_ITEMS: NavItem[] = [
 
   // Orders & Sales
   { id: "orders", label: "Orders", icon: ShoppingBag, group: "Orders & Sales" },
+  { id: "create-order", label: "Create Order", icon: ShoppingBag, group: "Orders & Sales" },
   { id: "pos", label: "POS", icon: Calculator, group: "Orders & Sales" },
   { id: "pos-orders", label: "POS Orders", icon: ListOrdered, group: "Orders & Sales" },
   { id: "flash-sales", label: "Flash Sales", icon: Zap, group: "Orders & Sales" },

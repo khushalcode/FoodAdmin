@@ -1,107 +1,261 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import { Edit, Trash2, Eye } from "lucide-react";
-import { PageHeader, ContentCard, StatusBadge, useFakeLoading, GridSkeleton } from "../shared/list-page";
+import { Plus, Trash2, Eye, EyeOff, Star, ExternalLink } from "lucide-react";
+import { PageHeader, ContentCard, StatusBadge, GridSkeleton } from "../shared/list-page";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { useRealtimeTable } from "@/hooks/use-realtime";
 
 interface Banner {
-  id: number;
+  id: string;
   title: string;
-  subtitle: string;
-  cta: string;
-  placement: string;
-  views: number;
-  clicks: number;
-  gradient: string;
-  emoji: string;
-  status: string;
+  type: string;
+  image: string;
+  url?: string;
+  redirectLink?: string;
+  status: boolean;
+  featured: boolean;
+  moduleId?: string;
+  zoneId?: string;
+  backgroundColor?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
-const DATA: Banner[] = [
-  { id: 1, title: "Summer Pizza Fest", subtitle: "Up to 40% off all pizzas", cta: "Order now", placement: "Home Hero", views: 14250, clicks: 4120, gradient: "from-orange-500 via-red-500 to-pink-500", emoji: "🍕", status: "Published" },
-  { id: 2, title: "Free Delivery Weekend", subtitle: "On all orders over $20", cta: "Grab it", placement: "Home Strip", views: 9820, clicks: 2340, gradient: "from-blue-500 via-cyan-500 to-teal-500", emoji: "🚀", status: "Published" },
-  { id: 3, title: "Sushi Sunday", subtitle: "Fresh sushi, every Sunday", cta: "Browse", placement: "Category Top", views: 5240, clicks: 1450, gradient: "from-emerald-500 via-green-500 to-lime-500", emoji: "🍣", status: "Published" },
-  { id: 4, title: "Burger Madness", subtitle: "Buy 1 Get 1 Free", cta: "Order", placement: "Home Hero", views: 7310, clicks: 1980, gradient: "from-amber-500 via-orange-500 to-red-500", emoji: "🍔", status: "Scheduled" },
-  { id: 5, title: "Healthy Bowls", subtitle: "Fresh & nutritious", cta: "Try now", placement: "Sidebar", views: 3120, clicks: 720, gradient: "from-green-500 via-emerald-500 to-teal-500", emoji: "🥗", status: "Published" },
-  { id: 6, title: "Dessert Dash", subtitle: "Sweet endings await", cta: "Order", placement: "Home Strip", views: 0, clicks: 0, gradient: "from-pink-500 via-rose-500 to-red-500", emoji: "🍰", status: "Draft" },
+const FALLBACK: Banner[] = [
+  { id: "fb-1", title: "Summer Sale — 30% off", type: "web_url", image: "https://images.unsplash.com/photo-1565299624946-b28f40a0ae38?w=400", redirectLink: "/offers", status: true, featured: true, backgroundColor: "#7C5CFF" },
+  { id: "fb-2", title: "Free Delivery Weekend", type: "web_url", image: "https://images.unsplash.com/photo-1504674900247-0877df9cc836?w=400", redirectLink: "/offers", status: true, featured: false, backgroundColor: "#C026D3" },
 ];
 
 export default function BannersPage() {
-  const loading = useFakeLoading();
+  const [data, setData] = useState<Banner[] | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<Banner | null>(null);
+  const [form, setForm] = useState<Partial<Banner>>({});
+
+  const refetch = async () => {
+    try {
+      const res = await fetch("/api/banners", { cache: "no-store" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const json = await res.json();
+      setData(json.length > 0 ? json : FALLBACK);
+    } catch (e) {
+      setData(FALLBACK);
+      toast.error("Failed to load banners — showing sample data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { refetch(); }, []);
+
+  // Live updates — any banner INSERT/UPDATE/DELETE triggers refetch
+  useRealtimeTable("banners", () => refetch());
+
+  const openCreate = () => {
+    setEditing(null);
+    setForm({ status: true, featured: false, type: "web_url" });
+    setDialogOpen(true);
+  };
+
+  const openEdit = (b: Banner) => {
+    setEditing(b);
+    setForm({ ...b });
+    setDialogOpen(true);
+  };
+
+  const save = async () => {
+    if (!form.title || !form.image) {
+      toast.error("Title and image are required");
+      return;
+    }
+    try {
+      const method = editing ? "PATCH" : "POST";
+      const body = editing ? { id: editing.id, ...form } : form;
+      const res = await fetch("/api/banners", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || `HTTP ${res.status}`);
+      }
+      toast.success(editing ? "Banner updated" : "Banner created — customer app will see it instantly");
+      setDialogOpen(false);
+      refetch();
+    } catch (e: any) {
+      toast.error(`Save failed: ${e.message}`);
+    }
+  };
+
+  const toggle = async (b: Banner) => {
+    try {
+      await fetch("/api/banners", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: b.id, status: !b.status }),
+      });
+      toast.success(`Banner ${!b.status ? "published" : "hidden"}`);
+      refetch();
+    } catch (e: any) {
+      toast.error(`Toggle failed: ${e.message}`);
+    }
+  };
+
+  const remove = async (id: string) => {
+    if (!confirm("Delete this banner? Customer app will no longer show it.")) return;
+    try {
+      await fetch(`/api/banners?id=${id}`, { method: "DELETE" });
+      toast.success("Banner deleted");
+      refetch();
+    } catch (e: any) {
+      toast.error(`Delete failed: ${e.message}`);
+    }
+  };
 
   return (
     <div>
       <PageHeader
         title="Banners"
-        description="Promotional banners shown across the customer app"
+        description="Promotional banners shown across the customer app (realtime-synced)"
         actionLabel="Add Banner"
-        onAction={() => toast.success("Opening banner designer...")}
+        onAction={openCreate}
       />
 
       {loading ? (
         <GridSkeleton count={6} />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {DATA.map((b, i) => {
-            const ctr = b.views > 0 ? ((b.clicks / b.views) * 100).toFixed(1) : "0";
-            return (
-              <motion.div
-                key={b.id}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.04 }}
-              >
-                <ContentCard className="overflow-hidden h-full">
-                  <div className={`relative h-36 bg-gradient-to-br ${b.gradient} flex items-center p-5 overflow-hidden`}>
-                    <div className="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white/10" />
-                    <div className="absolute -right-12 -bottom-8 w-24 h-24 rounded-full bg-white/10" />
-                    <span className="absolute right-4 bottom-2 text-7xl opacity-30">{b.emoji}</span>
-                    <div className="relative z-10 text-white max-w-[70%]">
-                      <span className="inline-block px-2 py-0.5 rounded-md bg-white/20 backdrop-blur text-[10px] font-semibold uppercase tracking-wide mb-1.5">
-                        {b.placement}
-                      </span>
-                      <h3 className="text-xl font-bold leading-tight">{b.title}</h3>
-                      <p className="text-sm text-white/90 mt-1">{b.subtitle}</p>
-                      <button className="mt-3 inline-flex items-center px-3 py-1.5 rounded-lg bg-white text-[#1F2937] text-xs font-semibold hover:bg-white/95">
-                        {b.cta} →
-                      </button>
-                    </div>
+          {(data || FALLBACK).map((b, i) => (
+            <motion.div
+              key={b.id}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.04 }}
+            >
+              <ContentCard className="overflow-hidden h-full">
+                <div
+                  className="relative h-36 flex items-center p-5 overflow-hidden"
+                  style={{ background: b.backgroundColor ? `linear-gradient(135deg, ${b.backgroundColor} 0%, #C026D3 100%)` : "linear-gradient(135deg, #7C5CFF 0%, #C026D3 100%)" }}
+                >
+                  <div className="absolute -right-6 -top-6 w-32 h-32 rounded-full bg-white/10" />
+                  <div className="absolute -right-12 -bottom-8 w-24 h-24 rounded-full bg-white/10" />
+                  <div className="relative z-10 text-white max-w-[70%]">
+                    <Badge variant="outline" className="bg-white/20 text-white border-white/30 backdrop-blur text-[10px] uppercase tracking-wide mb-1.5">
+                      {b.featured ? "Featured" : b.type}
+                    </Badge>
+                    <h3 className="text-xl font-bold leading-tight">{b.title}</h3>
+                    {b.redirectLink && (
+                      <a
+                        href={b.redirectLink}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-2 inline-flex items-center gap-1 text-xs text-white/80 hover:text-white"
+                      >
+                        {b.redirectLink} <ExternalLink className="w-3 h-3" />
+                      </a>
+                    )}
                   </div>
-                  <div className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4 text-xs">
-                      <div>
-                        <p className="text-[#9CA3AF]">Views</p>
-                        <p className="font-semibold text-[#111827]">{b.views.toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-[#9CA3AF]">Clicks</p>
-                        <p className="font-semibold text-[#111827]">{b.clicks.toLocaleString()}</p>
-                      </div>
-                      <div>
-                        <p className="text-[#9CA3AF]">CTR</p>
-                        <p className="font-semibold text-emerald-600">{ctr}%</p>
-                      </div>
-                    </div>
-                    <StatusBadge status={b.status} />
+                  {b.image && (
+                    <img
+                      src={b.image}
+                      alt={b.title}
+                      className="absolute right-2 top-2 w-24 h-24 rounded-lg object-cover border-2 border-white/30 shadow-lg"
+                      onError={(e) => ((e.target as HTMLImageElement).style.display = "none")}
+                    />
+                  )}
+                </div>
+                <div className="p-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Switch checked={b.status} onCheckedChange={() => toggle(b)} />
+                    <span className="text-xs text-muted-foreground">{b.status ? "Published" : "Hidden"}</span>
                   </div>
-                  <div className="px-4 pb-3 flex items-center gap-1.5 border-t border-[#F3F4F6] pt-3">
-                    <button onClick={() => toast.info(`Previewing ${b.title}`)} className="flex-1 h-8 rounded-lg bg-[#F3F4F6] hover:bg-[#E5E7EB] inline-flex items-center justify-center gap-1.5 text-xs font-medium text-[#374151] transition-colors">
-                      <Eye className="w-3.5 h-3.5" /> Preview
-                    </button>
-                    <button onClick={() => toast.info(`Editing ${b.title}`)} className="flex-1 h-8 rounded-lg bg-emerald-50 hover:bg-emerald-100 inline-flex items-center justify-center gap-1.5 text-xs font-medium text-emerald-600 transition-colors">
-                      <Edit className="w-3.5 h-3.5" /> Edit
-                    </button>
-                    <button onClick={() => toast.error(`Deleting ${b.title}`)} className="w-8 h-8 rounded-lg bg-red-50 hover:bg-red-100 inline-flex items-center justify-center text-red-600 transition-colors">
+                  <div className="flex items-center gap-1">
+                    <Button size="sm" variant="ghost" onClick={() => openEdit(b)} className="h-8 w-8 p-0">
+                      <Plus className="w-3.5 h-3.5 rotate-45" />
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => remove(b.id)} className="h-8 w-8 p-0 text-destructive hover:text-destructive">
                       <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    </Button>
                   </div>
-                </ContentCard>
-              </motion.div>
-            );
-          })}
+                </div>
+              </ContentCard>
+            </motion.div>
+          ))}
         </div>
       )}
+
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle>{editing ? "Edit Banner" : "Add Banner"}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label>Title</Label>
+              <Input value={form.title || ""} onChange={(e) => setForm({ ...form, title: e.target.value })} placeholder="Summer Sale — 30% off" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Image URL</Label>
+              <Input value={form.image || ""} onChange={(e) => setForm({ ...form, image: e.target.value })} placeholder="https://images.unsplash.com/..." />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Redirect Link</Label>
+              <Input value={form.redirectLink || ""} onChange={(e) => setForm({ ...form, redirectLink: e.target.value })} placeholder="/offers" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Type</Label>
+                <select
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  value={form.type || "web_url"}
+                  onChange={(e) => setForm({ ...form, type: e.target.value })}
+                >
+                  <option value="web_url">Web URL</option>
+                  <option value="store">Store</option>
+                  <option value="item">Item</option>
+                  <option value="category">Category</option>
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <Label>Background color</Label>
+                <Input value={form.backgroundColor || ""} onChange={(e) => setForm({ ...form, backgroundColor: e.target.value })} placeholder="#7C5CFF" />
+              </div>
+            </div>
+            <div className="flex items-center gap-6 pt-2">
+              <div className="flex items-center gap-2">
+                <Switch checked={form.status ?? true} onCheckedChange={(v) => setForm({ ...form, status: v })} />
+                <Label>Published</Label>
+              </div>
+              <div className="flex items-center gap-2">
+                <Switch checked={form.featured ?? false} onCheckedChange={(v) => setForm({ ...form, featured: v })} />
+                <Label>Featured</Label>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+            <Button onClick={save} className="bg-gradient-to-r from-primary to-fuchsia-600 hover:opacity-90">
+              {editing ? "Save Changes" : "Create Banner"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
