@@ -1,59 +1,157 @@
-import * as React from "react"
-import { Slot } from "@radix-ui/react-slot"
-import { cva, type VariantProps } from "class-variance-authority"
+// Reusable Button component matching the design system.
+// Variants: primary (green), secondary (mint), outline, ghost, danger.
 
-import { cn } from "@/lib/utils"
+import { StyleSheet, Pressable, ActivityIndicator, Text, View, ViewStyle } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Colors, Radius, Spacing, FontSize, FontWeight } from '@/constants/theme';
 
-const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg:not([class*='size-'])]:size-4 shrink-0 [&_svg]:shrink-0 outline-none focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
-  {
-    variants: {
-      variant: {
-        default:
-          "bg-primary text-primary-foreground shadow-xs hover:bg-primary/90",
-        destructive:
-          "bg-destructive text-white shadow-xs hover:bg-destructive/90 focus-visible:ring-destructive/20 dark:focus-visible:ring-destructive/40 dark:bg-destructive/60",
-        outline:
-          "border bg-background shadow-xs hover:bg-accent hover:text-accent-foreground dark:bg-input/30 dark:border-input dark:hover:bg-input/50",
-        secondary:
-          "bg-secondary text-secondary-foreground shadow-xs hover:bg-secondary/80",
-        ghost:
-          "hover:bg-accent hover:text-accent-foreground dark:hover:bg-accent/50",
-        link: "text-primary underline-offset-4 hover:underline",
-      },
-      size: {
-        default: "h-9 px-4 py-2 has-[>svg]:px-3",
-        sm: "h-8 rounded-md gap-1.5 px-3 has-[>svg]:px-2.5",
-        lg: "h-10 rounded-md px-6 has-[>svg]:px-4",
-        icon: "size-9",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-      size: "default",
-    },
-  }
-)
+type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'dark';
+type Size = 'sm' | 'md' | 'lg';
 
-function Button({
-  className,
-  variant,
-  size,
-  asChild = false,
-  ...props
-}: React.ComponentProps<"button"> &
-  VariantProps<typeof buttonVariants> & {
-    asChild?: boolean
-  }) {
-  const Comp = asChild ? Slot : "button"
-
-  return (
-    <Comp
-      data-slot="button"
-      className={cn(buttonVariants({ variant, size, className }))}
-      {...props}
-    />
-  )
+interface ButtonProps {
+  label: string;
+  onPress?: () => void;
+  variant?: Variant;
+  size?: Size;
+  loading?: boolean;
+  disabled?: boolean;
+  icon?: keyof typeof Ionicons.glyphMap;
+  iconPosition?: 'left' | 'right';
+  block?: boolean;
+  style?: ViewStyle;
 }
 
-export { Button, buttonVariants }
+export function Button({
+  label,
+  onPress,
+  variant = 'primary',
+  size = 'md',
+  loading = false,
+  disabled = false,
+  icon,
+  iconPosition = 'left',
+  block = false,
+  style,
+}: ButtonProps) {
+  const bg = bgForVariant(variant);
+  const fg = fgForVariant(variant);
+  const isOutline = variant === 'outline';
+  const isGhost = variant === 'ghost';
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled || loading}
+      style={({ pressed }) => [
+        styles.base,
+        { backgroundColor: bg },
+        sizeStyles[size],
+        isOutline && styles.outline,
+        isGhost && styles.ghost,
+        (disabled || loading) && styles.disabled,
+        pressed && !disabled && styles.pressed,
+        block && styles.block,
+        style,
+      ]}
+    >
+      {loading ? (
+        <ActivityIndicator color={fg} size="small" />
+      ) : (
+        <View style={styles.content}>
+          {icon && iconPosition === 'left' && <Ionicons name={icon} size={iconSize(size)} color={fg} style={styles.iconLeft} />}
+          <Text style={[styles.label, { color: fg }, sizeLabelStyles[size]]}>{label}</Text>
+          {icon && iconPosition === 'right' && <Ionicons name={icon} size={iconSize(size)} color={fg} style={styles.iconRight} />}
+        </View>
+      )}
+    </Pressable>
+  );
+}
+
+function bgForVariant(v: Variant): string {
+  switch (v) {
+    case 'primary': return Colors.primary;
+    case 'secondary': return Colors.primaryLight;
+    case 'outline': return 'transparent';
+    case 'ghost': return 'transparent';
+    case 'danger': return Colors.danger;
+    case 'dark': return Colors.text;
+  }
+}
+
+function fgForVariant(v: Variant): string {
+  switch (v) {
+    case 'primary': return Colors.textInverse;
+    case 'secondary': return Colors.primaryDark;
+    case 'outline': return Colors.text;
+    case 'ghost': return Colors.text;
+    case 'danger': return Colors.textInverse;
+    case 'dark': return Colors.textInverse;
+  }
+}
+
+function iconSize(s: Size): number {
+  switch (s) {
+    case 'sm': return 14;
+    case 'md': return 16;
+    case 'lg': return 18;
+  }
+}
+
+const styles = StyleSheet.create({
+  base: {
+    borderRadius: Radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  content: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconLeft: { marginRight: Spacing.sm },
+  iconRight: { marginLeft: Spacing.sm },
+  label: {
+    fontWeight: FontWeight.semibold,
+  },
+  outline: {
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: 'transparent',
+  },
+  ghost: {
+    backgroundColor: 'transparent',
+  },
+  disabled: {
+    opacity: 0.5,
+  },
+  pressed: {
+    opacity: 0.85,
+  },
+  block: {
+    alignSelf: 'stretch',
+  },
+});
+
+const sizeStyles = StyleSheet.create({
+  sm: {
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
+    minHeight: 36,
+  },
+  md: {
+    paddingVertical: Spacing.md + 2,
+    paddingHorizontal: Spacing.lg,
+    minHeight: 48,
+  },
+  lg: {
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.xl,
+    minHeight: 56,
+  },
+});
+
+const sizeLabelStyles = StyleSheet.create({
+  sm: { fontSize: FontSize.sm },
+  md: { fontSize: FontSize.md },
+  lg: { fontSize: FontSize.lg },
+});

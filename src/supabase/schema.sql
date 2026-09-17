@@ -1,0 +1,100 @@
+-- =====================================================================
+-- Customer App — Schema Pointer (V5.1 — Grocery-Ported Food Features)
+-- ---------------------------------------------------------------------
+-- The customer app shares the SAME Supabase database as the admin panel.
+-- The full schema is owned by the admin panel project at:
+--
+--     admin_panel/supabase/base_schema.sql     ← CREATE TABLE statements
+--     admin_panel/supabase/init.sql             ← ALTER statements (admin)
+--     admin_panel/supabase/seed_demo.sql        ← demo admin + demo data
+--     admin_panel/supabase/bootstrap_combined.sql ← all-in-one (paste into SQL editor)
+--
+-- >>> V5.1 ADDITIONAL MIGRATION (apply AFTER base_schema.sql + init.sql):
+--
+--     src/supabase/migration_v5_1_food_features.sql   ← new tables + columns
+--     src/supabase/seed_food_features_demo.sql        ← demo data for new features
+--
+-- V5.1 new tables / columns:
+--   - items.is_gluten_free, is_spicy, is_chef_special, is_best_seller, is_new
+--   - items.allergens[], ingredients[], subscription_eligible, restock_enabled
+--   - stores.bulk_order_discount_amount/percent, free_delivery_over_amount
+--   - stores.cashback_offer_id, loyalty_earn_rate, subscription_enabled
+--   - stores.is_express, is_top_rated, is_open_now_24h
+--   - item_nutrition                       — per-dish nutrition facts (1:1)
+--   - item_bulk_discount_tiers             — qty-based discount ladder (1:N)
+--   - restock_alerts                       — user opt-in restock notifications
+--   - item_subscriptions                   — weekly recurring meal subscriptions
+--   - food_brands + food_brand_stores      — F&B brand catalog (M:N with stores)
+--   - blog_posts                           — food journal articles
+--   - food_flash_sales + _items            — time-boxed deals
+--   - loyalty_tiers                        — silver/gold/platinum definitions
+--   - user_loyalty_tiers                   — per-user tier + lifetime points
+--   - delivery_slots                       — schedulable delivery windows
+--   - cashback_offers                      — promotional cashback campaigns
+--   - user_cashback_transactions           — per-user cashback ledger
+--   - surge_charges                        — zone-scoped demand surcharge
+--   - delivery_instructions                — saved per-user delivery instructions
+--   - user_subscriptions                   — FoodHub Plus membership ledger
+--
+-- New views:
+--   - v_items_with_food_features           — items + nutrition + bulk tiers
+--   - v_stores_with_food_features          — stores + active cashback
+--   - v_user_dashboard                     — loyalty + cashback + subscription summary
+--
+-- New triggers:
+--   - trg_assign_default_loyalty_tier      — auto-assign Silver Fork on signup
+--   - trg_promote_loyalty_tier             — auto-promote tier on lifetime_points change
+--   - trg_update_store_top_rated           — auto-flag is_top_rated when rating ≥ 4.5
+--
+-- Tables this app reads/writes (with RLS):
+--   READ  (public):  modules, zones, categories, brands, units,
+--                    stores, store_categories, items, add_ons,
+--                    banners, coupons, campaigns, flash_sales,
+--                    item_nutrition, item_bulk_discount_tiers,
+--                    food_brands, food_brand_stores, blog_posts,
+--                    food_flash_sales, food_flash_sale_items,
+--                    loyalty_tiers, delivery_slots,
+--                    cashback_offers, surge_charges
+--   OWNER (auth.uid = user_id):
+--     customer_addresses         — full CRUD
+--     carts                      — full CRUD
+--     wishlists                  — full CRUD
+--     orders                     — INSERT, SELECT, UPDATE
+--     order_details              — INSERT, SELECT (via parent order ownership)
+--     reviews                    — INSERT, SELECT
+--     wallet_transactions        — SELECT
+--     loyalty_point_transactions — SELECT
+--     user_notifications         — SELECT, UPDATE
+--     user_profiles              — SELECT, UPDATE (own row only)
+--     -- V5.1 NEW owner-scoped tables:
+--     restock_alerts             — full CRUD
+--     item_subscriptions         — full CRUD
+--     user_loyalty_tiers         — SELECT (auto-managed by triggers)
+--     user_cashback_transactions — SELECT (write-side is server-side)
+--     delivery_instructions      — full CRUD
+--     user_subscriptions         — SELECT (write-side is server-side)
+--
+-- To set up:
+--   1. Create a Supabase project at https://supabase.com
+--   2. Open Supabase SQL Editor → New query
+--   3. Paste the contents of:
+--        admin_panel/supabase/bootstrap_combined.sql
+--      (or run base_schema.sql + init.sql + seed_demo.sql in that order)
+--   4. Click Run
+--   5. Open a new query, paste:
+--        src/supabase/migration_v5_1_food_features.sql
+--      Click Run
+--   6. Optional — open a new query, paste:
+--        src/supabase/seed_food_features_demo.sql
+--      Click Run
+--   7. Copy your project URL + anon key from Supabase Settings → API
+--   8. Put them into:
+--        admin_panel/.env.local       (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY)
+--        customer_app/app.json       (expo.extra.supabaseUrl, expo.extra.supabaseAnonKey)
+--   9. Run admin:    cd admin_panel && npm install && npm run dev   → http://localhost:3000
+--      Run customer: cd customer_app && npm install && npx expo start
+--
+-- Demo logins (created by seed_demo.sql):
+--   Admin:    admin@demo.com     / Demo@1234
+--   Customer: customer@demo.com  / Customer@1234
+-- =====================================================================
